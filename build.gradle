@@ -12,10 +12,12 @@ repositories {
 }
 
 dependencies {
-    compile "com.graphhopper:graphhopper-core:3.0-pre2"
-    compile("org.springframework.boot:spring-boot-starter-actuator")
+    implementation 'com.graphhopper:graphhopper-reader-osm:3.0-pre2'
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.12.2'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    implementation "org.springframework.boot:spring-boot-devtools"
 }
 
 test {

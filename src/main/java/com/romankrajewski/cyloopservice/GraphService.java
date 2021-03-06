@@ -1,24 +1,42 @@
 package com.romankrajewski.cyloopservice;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.graphhopper.*;
 import com.graphhopper.config.CHProfile;
 import com.graphhopper.config.Profile;
+import com.graphhopper.reader.dem.MultiSourceElevationProvider;
 import com.graphhopper.reader.dem.SRTMProvider;
+import com.graphhopper.routing.AlgorithmOptions;
+import com.graphhopper.routing.FlexiblePathCalculator;
+import com.graphhopper.routing.RoundTripRouting;
+import com.graphhopper.routing.RoutingAlgorithmFactorySimple;
+import com.graphhopper.routing.querygraph.QueryGraph;
 import com.graphhopper.routing.util.EncodingManager;
+import com.graphhopper.storage.index.Snap;
+import com.graphhopper.util.*;
+import com.graphhopper.util.shapes.GHPoint;
+import jackson.GraphHopperConfigModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 @Service
 public class GraphService {
-
+    Logger logger = LoggerFactory.getLogger(GraphService.class);
     GraphHopper hopper;
 
     @PostConstruct
     private void postConstruct(){
-        hopper = createGraphHopperInstance("mapdata/brandenburg-latest.osm.pbf");
+        hopper = createGraphHopperInstance();
     }
 
     @PreDestroy
@@ -26,39 +44,39 @@ public class GraphService {
         hopper.close();
     }
 
-    public RoutePOJO route(){
-        GHRequest req = new GHRequest(52.512195, 13.412353, 52.546352, 13.343703).
-                // note that we have to specify which profile we are using even when there is only one like here
-                        setProfile("car").
-                // define the language for the turn instructions
-                        setLocale(Locale.US);
-        GHResponse rsp = hopper.route(req);
+    public RoutePOJO route(double startLat, double startLng, int routeLength){
 
-        // handle errors
-        if (rsp.hasErrors())
-            throw new RuntimeException(rsp.getErrors().toString());
+        var roundtripHints = new PMap();
+        roundtripHints.putObject(Parameters.Algorithms.RoundTrip.DISTANCE, routeLength);
+        roundtripHints.putObject(Parameters.Algorithms.RoundTrip.POINTS, 3);
 
-        // use the best path, see the GHResponse class for more possibilities.
-        ResponsePath path = rsp.getBest();
-
+        RoundTripRouting.Params rtrps = new RoundTripRouting.Params(roundtripHints, 0, 3);
+        var points = new ArrayList<GHPoint>();
+        points.add(new GHPoint(startLat, startLng));
+        var bikeweighting = hopper.createWeighting(hopper.getProfile("bike"), new PMap());
+        var snaps = RoundTripRouting.lookup(points, bikeweighting, hopper.getLocationIndex(), rtrps);
+        var algoOpts = AlgorithmOptions.start().algorithm(Parameters.Algorithms.ASTAR_BI).weighting(bikeweighting).build();
+        var result = RoundTripRouting.calcPaths(snaps,
+                new FlexiblePathCalculator(QueryGraph.create(hopper.getGraphHopperStorage(), snaps),
+                        new RoutingAlgorithmFactorySimple(), algoOpts));
         // points, distance in meters and time in millis of the full path
-        return new RoutePOJO(path);
+        return new RoutePOJO(result.paths);
     }
 
-    private GraphHopper createGraphHopperInstance(String ghLoc){
+    private GraphHopper createGraphHopperInstance(){
         GraphHopper hopper = new GraphHopper();
-        hopper.setElevationProvider(new SRTMProvider());
-        hopper.setOSMFile(ghLoc);
-        // specify where to store graphhopper files
-        hopper.setGraphHopperLocation("mapdata/routing-graph-cache");
-        hopper.setEncodingManager(EncodingManager.create("car"));
+        ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
+        objectMapper.registerModule(new GraphHopperConfigModule());
 
-        // see docs/core/profiles.md to learn more about profiles
-        hopper.setProfiles(new Profile("car").setVehicle("car").setWeighting("fastest").setTurnCosts(false));
+        GraphHopperConfig config = null;
 
-        // this enables speed mode for the profile we called car
-        hopper.getCHPreparationHandler().setCHProfiles(new CHProfile("car"));
+        try {
+            config = objectMapper.readValue(getClass().getClassLoader().getResourceAsStream("./graphhopper-config.yaml"), GraphHopperConfig.class);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
+        hopper.init(config);
         // now this can take minutes if it imports or a few seconds for loading of course this is dependent on the area you import
         hopper.importOrLoad();
         return hopper;

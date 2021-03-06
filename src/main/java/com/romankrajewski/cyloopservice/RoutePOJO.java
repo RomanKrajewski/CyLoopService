@@ -1,7 +1,12 @@
 package com.romankrajewski.cyloopservice;
 
 import com.graphhopper.ResponsePath;
+import com.graphhopper.routing.Path;
 import com.graphhopper.util.PointList;
+import org.yaml.snakeyaml.util.ArrayUtils;
+
+import java.util.LinkedList;
+import java.util.List;
 
 public class RoutePOJO {
     public double[] longitudes;
@@ -19,5 +24,23 @@ public class RoutePOJO {
             lattitudes[i] = path.getPoints().getLat(i);
             elevations[i] = path.getPoints().getEle(i);
         }
+    }
+
+    public RoutePOJO(List<Path> paths){
+        LinkedList<Double> longitudes = new LinkedList<>();
+        LinkedList<Double> lattitudes = new LinkedList<>();
+        LinkedList<Double> elevations = new LinkedList<>();
+        for (Path path : paths) {
+            var pointList = path.calcPoints();
+            for (int i = 0; i < pointList.size(); i++) {
+                longitudes.add(pointList.getLon(i));
+                lattitudes.add(pointList.getLat(i));
+                elevations.add(pointList.getEle(i));
+            }
+            this.totalLength += path.getDistance();
+        }
+        this.longitudes = longitudes.stream().mapToDouble(Double::doubleValue).toArray();
+        this.lattitudes = lattitudes.stream().mapToDouble(Double::doubleValue).toArray();
+        this.elevations = elevations.stream().mapToDouble(Double::doubleValue).toArray();
     }
 }

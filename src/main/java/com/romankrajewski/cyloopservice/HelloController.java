@@ -7,6 +7,7 @@ import com.graphhopper.ResponsePath;
 import com.graphhopper.util.PointList;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.PreDestroy;
@@ -24,7 +25,7 @@ public class HelloController {
     }
 
     @RequestMapping("/route")
-    public RoutePOJO route(){
-        return graphService.route();
+    public RoutePOJO route(@RequestParam(value = "lat") double lat, @RequestParam(value = "lng") double lng, @RequestParam(value = "length") int length){
+        return graphService.route(lat, lng, length);
     }
 }
