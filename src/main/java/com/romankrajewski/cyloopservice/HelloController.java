@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.PreDestroy;
+import java.util.List;
 import java.util.Locale;
 
 @RestController
@@ -25,7 +26,7 @@ public class HelloController {
     }
 
     @RequestMapping("/route")
-    public RoutePOJO route(@RequestParam(value = "lat") double lat, @RequestParam(value = "lng") double lng, @RequestParam(value = "length") int length){
+    public List<RoutePOJO> route(@RequestParam(value = "lat") double lat, @RequestParam(value = "lng") double lng, @RequestParam(value = "length") int length){
         return graphService.route(lat, lng, length);
     }
 }
