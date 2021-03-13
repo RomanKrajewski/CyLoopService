@@ -19,6 +19,7 @@ import com.graphhopper.util.EdgeIteratorState;
 import com.graphhopper.util.PMap;
 import com.graphhopper.util.Parameters;
 import com.graphhopper.util.exceptions.PointNotFoundException;
+import com.graphhopper.util.shapes.GHPoint;
 import jackson.GraphHopperConfigModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,27 +76,22 @@ public class GraphService {
         EdgeFilter edgeFilter = edgeState -> !Double.isInfinite(bikeweighting.calcEdgeWeightWithAccess(edgeState, false))
                 || !Double.isInfinite(bikeweighting.calcEdgeWeightWithAccess(edgeState, true));
 
-        var startSnap = locationIndex.findClosest(startLat, startLng, edgeFilter);
-
-        if(!startSnap.isValid()){
-            throw new PointNotFoundException("Can't find Node for start Coordinates", 0);
-        }
         List<RoutePOJO> routes = new LinkedList<>();
-        Random random = new Random();
         var retryCount = 0;
         var algoOpts = AlgorithmOptions.start().algorithm(Parameters.Algorithms.ASTAR_BI).weighting(bikeweighting).build();
         var estimatedBeelineDistance = (int) (routeLength * 0.8);
+        GeometryBuilder geometryBuilder = new PolygonGeometryBuilder(estimatedBeelineDistance, numPoints, new GHPoint(startLat, startLng));
 
         while (routes.size() < numRoutes && retryCount < maxRetries){
-            var heading = random.nextInt(360);
-            List<Snap> snaps = null;
-            try {
-                snaps = generateRouteGeometry(estimatedBeelineDistance, numPoints, locationIndex, edgeFilter, startSnap, heading);
-            }catch (PointNotFoundException pnfe){
+            var points = geometryBuilder.getNextGeometry();
+            List<Snap> snaps = points.stream().map(ghPoint -> locationIndex.findClosest(ghPoint.getLat(), ghPoint.getLon(), edgeFilter)).collect(Collectors.toList());
+
+            if(snaps.stream().anyMatch(snap -> !snap.isValid())){
                 maxRetries ++;
-                logger.debug(pnfe.getMessage());
+                logger.debug("Invalid Snap, retrying...");
                 continue;
             }
+
             var queryGraph = QueryGraph.create(hopper.getGraphHopperStorage(), snaps);
 
             List<Path> paths = calculatePaths(bikeweighting, algoOpts, snaps, queryGraph);
@@ -107,6 +103,7 @@ public class GraphService {
             //check if route has an acceptable length and recalculate beeline distance estimate if necessary
             if(mergedPath.getDistance() > routeLength + routeLength/10.0 || mergedPath.getDistance() < routeLength - routeLength/10.0){
                 estimatedBeelineDistance =(int) ((routeLength/mergedPath.getDistance()) * estimatedBeelineDistance);
+                geometryBuilder.setRouteLength(estimatedBeelineDistance);
                 retryCount ++;
                 continue;
             }
@@ -115,23 +112,6 @@ public class GraphService {
         return routes;
     }
 
-    private List<Snap> generateRouteGeometry(int routeLength, int numPoints, LocationIndex locationIndex, EdgeFilter edgeFilter, Snap startSnap, int heading) {
-        var lastSnap = startSnap;
-        List<Snap> snaps = new LinkedList<>();
-        snaps.add(lastSnap);
-        for (int i = 0; i < numPoints - 1; i++) {
-            var nextPoint = DistanceCalcEarth.DIST_EARTH.projectCoordinate(
-                    lastSnap.getSnappedPoint().getLat(), lastSnap.getSnappedPoint().getLon(),
-                    routeLength /(double) numPoints, heading + i*(360/(double) numPoints));
-            var nextSnap = locationIndex.findClosest(nextPoint.getLat(), nextPoint.getLon(), edgeFilter);
-            if(!nextSnap.isValid()){
-                throw new PointNotFoundException("Point not found for Roundtrip", i);
-            }
-            snaps.add(nextSnap);
-            lastSnap = nextSnap;
-        }
-        return snaps;
-    }
 
     private List<Path> calculatePaths(Weighting bikeweighting, AlgorithmOptions algoOpts, List<Snap> snaps, QueryGraph queryGraph) {
         IntSet previousEdges = new IntHashSet();
