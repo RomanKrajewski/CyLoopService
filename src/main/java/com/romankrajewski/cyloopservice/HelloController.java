@@ -1,18 +1,13 @@
 package com.romankrajewski.cyloopservice;
 
-import com.graphhopper.GHRequest;
-import com.graphhopper.GHResponse;
-import com.graphhopper.GraphHopper;
-import com.graphhopper.ResponsePath;
-import com.graphhopper.util.PointList;
+import com.graphhopper.util.shapes.GHPoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.annotation.PreDestroy;
+import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 
 @RestController
 public class HelloController {
@@ -28,5 +23,11 @@ public class HelloController {
     @RequestMapping("/route")
     public List<RoutePOJO> route(@RequestParam(value = "lat") double lat, @RequestParam(value = "lng") double lng, @RequestParam(value = "length") int length){
         return graphService.route(lat, lng, length);
+    }
+
+    @RequestMapping("/poiroute")
+    public int poiRoute(@RequestParam(value = "lat") double lat, @RequestParam(value = "lng") double lng,
+                                          @RequestParam(value = "length") int length, @RequestParam(value = "category") String category){
+        return new PoiGeometryBuilder(length, new GHPoint(lat, lng) , Collections.singletonList(category)).poiCombinations();
     }
 }

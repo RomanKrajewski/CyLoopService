@@ -112,7 +112,6 @@ public class GraphService {
             }
             routes.add(new RoutePOJO(Collections.singletonList(mergedPath)));
         }
-
         return routes;
     }
 
