@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import java.awt.*;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -111,7 +112,13 @@ public class GraphService {
                 retryCount ++;
                 continue;
             }
-            routes.add(new RoutePOJO(Collections.singletonList(mergedPath)));
+
+            List<PointOfInterest> pointOfInterests = points
+                    .stream()
+                    .filter(p -> p instanceof PointOfInterest)
+                    .map(p -> (PointOfInterest) p).collect(Collectors.toList());
+
+            routes.add(new RoutePOJO(Collections.singletonList(mergedPath), pointOfInterests));
         }
         return routes;
     }

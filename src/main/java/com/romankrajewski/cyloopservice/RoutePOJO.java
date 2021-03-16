@@ -2,8 +2,6 @@ package com.romankrajewski.cyloopservice;
 
 import com.graphhopper.ResponsePath;
 import com.graphhopper.routing.Path;
-import com.graphhopper.util.PointList;
-import org.yaml.snakeyaml.util.ArrayUtils;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -12,7 +10,9 @@ public class RoutePOJO {
     public double[] longitudes;
     public double[] lattitudes;
     public double[] elevations;
+    public PointOfInterest[] pointsOfInterest;
     public double totalLength;
+
 
     public RoutePOJO(ResponsePath path) {
         this.longitudes = new double[path.getPoints().size()];
@@ -26,7 +26,7 @@ public class RoutePOJO {
         }
     }
 
-    public RoutePOJO(List<Path> paths){
+    public RoutePOJO(List<Path> paths, List<PointOfInterest> pointsOfInterest){
         LinkedList<Double> longitudes = new LinkedList<>();
         LinkedList<Double> lattitudes = new LinkedList<>();
         LinkedList<Double> elevations = new LinkedList<>();
@@ -42,5 +42,6 @@ public class RoutePOJO {
         this.longitudes = longitudes.stream().mapToDouble(Double::doubleValue).toArray();
         this.lattitudes = lattitudes.stream().mapToDouble(Double::doubleValue).toArray();
         this.elevations = elevations.stream().mapToDouble(Double::doubleValue).toArray();
+        this.pointsOfInterest = pointsOfInterest.toArray(PointOfInterest[]::new);
     }
 }

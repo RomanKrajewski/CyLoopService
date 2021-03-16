@@ -41,7 +41,7 @@ public class PoiGeometryBuilder implements GeometryBuilder{
                     .toArray(PointOfInterest[]::new);
         }
         combinations = new TreeMap<>();
-        combine(combinations, new LinkedList<>() , arraysToCombine);
+        combine(combinations, new LinkedList<>() , arraysToCombine, start);
     }
 
     public List<? extends GHPoint> getNextGeometry(){
@@ -65,12 +65,13 @@ public class PoiGeometryBuilder implements GeometryBuilder{
         this.routeLength = routeLength;
     }
 
-    public void combine(TreeMap<Integer, PoiRoutePoints> combinations, List<PointOfInterest> current, PointOfInterest[][] arraysToCombine){
+    public void combine(TreeMap<Integer, PoiRoutePoints> combinations, List<GHPoint> current, PointOfInterest[][] arraysToCombine, GHPoint start){
         if(current.size() == arraysToCombine.length){
             if(current.stream().distinct().count() < current.size()){
                 return;
             }
             int estimatedRouteLength = 0;
+            current.add(0,start);
             for (int i = 0; i < current.size(); i++) {
                 estimatedRouteLength += DistanceCalcEarth.DIST_EARTH.calcDist(current.get(i).lat, current.get(i).lon,
                         current.get((i+1)%current.size()).lat, current.get((i+1)%current.size()).lon);
@@ -79,23 +80,34 @@ public class PoiGeometryBuilder implements GeometryBuilder{
         }else{
             var currentPoiIndex = current.size();
             for (int i = 0; i < arraysToCombine[currentPoiIndex].length; i++) {
-                List<PointOfInterest> currentCopy = new LinkedList<>(current);
+                List<GHPoint> currentCopy = new LinkedList<>(current);
                 currentCopy.add(arraysToCombine[currentPoiIndex][i]);
-                combine(combinations, currentCopy, arraysToCombine);
+                combine(combinations, currentCopy, arraysToCombine, start);
             }
         }
     }
 
 
     List<PointOfInterest> queryPOIs(List<String> categories, double aroundLat, double aroundLong, int radius) {
-        var categoryString = String.join("|", categories);
+//        var categoryString = String.join("|", categories);
         var client = HttpClient.newHttpClient();
         var uriBase = "https://overpass.kumi.systems/api/interpreter?data=";
 
-        var queryUnencoded = "[out:json][timeout:300];\n" +
-            String.format(Locale.US, "(node[\"tourism\"~\"^%s$\"](around:%d, %f, %f);\n", categoryString, radius, aroundLat, aroundLong) +
-            String.format(Locale.US, "node[\"amenity\"~\"^%s$\"](around:%d, %f, %f););\n", categoryString, radius, aroundLat, aroundLong) +
-            "out body;";
+//        var queryUnencoded = "[out:json][timeout:300];\n" +
+//            String.format(Locale.US, "(node[\"tourism\"~\"^%s$\"](around:%d, %f, %f);\n", categoryString, radius, aroundLat, aroundLong) +
+//            String.format(Locale.US, "node[\"amenity\"~\"^%s$\"](around:%d, %f, %f););\n", categoryString, radius, aroundLat, aroundLong) +
+//            "out body;";//
+//
+        StringBuilder queryUnencodedBuilder = new StringBuilder("[out:json][timeout:300];\n");
+        categories.forEach(category -> queryUnencodedBuilder.append(String.format(Locale.US,
+                "node[\"tourism\"=\"%s\"](around:%d, %f, %f)->.%stourism;\n", category, radius, aroundLat, aroundLong, category)));
+        categories.forEach(category -> queryUnencodedBuilder.append(String.format(Locale.US,
+                "node[\"amenity\"=\"%s\"](around:%d, %f, %f)->.%samenity;\n", category, radius, aroundLat, aroundLong, category)));
+        categories.forEach(category -> queryUnencodedBuilder.append(String.format(Locale.US, ".%stourism out body 100;", category)));
+        categories.forEach(category -> queryUnencodedBuilder.append(String.format(Locale.US, ".%samenity out body 100;", category)));
+
+
+        var queryUnencoded = queryUnencodedBuilder.toString();
 
         var encodedString = URLEncoder.encode(queryUnencoded, StandardCharsets.UTF_8);
         HttpRequest request = null;
