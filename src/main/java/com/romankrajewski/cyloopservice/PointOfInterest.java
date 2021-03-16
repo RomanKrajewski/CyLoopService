@@ -4,15 +4,14 @@ import com.graphhopper.util.shapes.GHPoint;
 
 import java.util.Objects;
 
-public class PointOfInterest {
+public class PointOfInterest extends GHPoint{
     public final int osmID;
-    public final GHPoint location;
     public final String category;
 
 
     public  PointOfInterest(int osmID, double lat, double lon, String category){
+        super(lat, lon);
         this.osmID = osmID;
-        this.location = new GHPoint(lat, lon);
         this.category = category;
     }
 

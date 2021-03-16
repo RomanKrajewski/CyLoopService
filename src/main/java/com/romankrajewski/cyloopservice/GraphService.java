@@ -18,7 +18,6 @@ import com.graphhopper.util.DistanceCalcEarth;
 import com.graphhopper.util.EdgeIteratorState;
 import com.graphhopper.util.PMap;
 import com.graphhopper.util.Parameters;
-import com.graphhopper.util.exceptions.PointNotFoundException;
 import com.graphhopper.util.shapes.GHPoint;
 import jackson.GraphHopperConfigModule;
 import org.slf4j.Logger;
@@ -31,7 +30,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Random;
 import java.util.stream.Collectors;
 
 @Service
@@ -63,7 +61,7 @@ public class GraphService {
         hopper.close();
     }
 
-    public List<RoutePOJO> route(double startLat, double startLng, int routeLength){
+    public List<RoutePOJO> route(double startLat, double startLng, int routeLength, List<String> categories){
 
         var numPoints = 3;
         var numRoutes = 10;
@@ -80,7 +78,13 @@ public class GraphService {
         var retryCount = 0;
         var algoOpts = AlgorithmOptions.start().algorithm(Parameters.Algorithms.ASTAR_BI).weighting(bikeweighting).build();
         var estimatedBeelineDistance = (int) (routeLength * 0.8);
-        GeometryBuilder geometryBuilder = new PolygonGeometryBuilder(estimatedBeelineDistance, numPoints, new GHPoint(startLat, startLng));
+        GeometryBuilder geometryBuilder = null;
+
+        if(categories.isEmpty()){
+            geometryBuilder = new PolygonGeometryBuilder(estimatedBeelineDistance, numPoints, new GHPoint(startLat, startLng));
+        }else {
+            geometryBuilder = new PoiGeometryBuilder(routeLength, new GHPoint(startLat, startLng), categories);
+        }
 
         while (routes.size() < numRoutes && retryCount < maxRetries){
             var points = geometryBuilder.getNextGeometry();
