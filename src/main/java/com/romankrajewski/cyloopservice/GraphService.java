@@ -104,7 +104,7 @@ public class GraphService {
                 retryCount ++;
                 continue;
             }
-            Path mergedPath = mergePaths(bikeweighting, queryGraph, paths);
+            Path mergedPath = mergePaths(bikeweighting, queryGraph, paths, categories.isEmpty());
             //check if route has an acceptable length and recalculate beeline distance estimate if necessary
             if(mergedPath.getDistance() > routeLength + routeLength/10.0 || mergedPath.getDistance() < routeLength - routeLength/10.0){
                 estimatedBeelineDistance =(int) ((routeLength/mergedPath.getDistance()) * estimatedBeelineDistance);
@@ -157,7 +157,7 @@ public class GraphService {
         return paths;
     }
 
-    private Path mergePaths(Weighting bikeWeighting, QueryGraph queryGraph, List<Path> paths) {
+    private Path mergePaths(Weighting bikeWeighting, QueryGraph queryGraph, List<Path> paths, boolean cutOfTails) {
         int[] pathStartIndices = new int[paths.size()];
         List<List<EdgeIteratorState>> pathEdgeLists = paths.stream().map(Path::calcEdges).collect(Collectors.toList());
 
@@ -173,6 +173,9 @@ public class GraphService {
                 mergedPath.addEdge(currentEdge.getEdge());
                 mergedPath.addDistance(currentEdge.getDistance());
                 mergedPath.addTime(bikeWeighting.calcEdgeMillis(currentEdge, false));
+                if(!cutOfTails){
+                    continue;
+                }
                 for (int k = pathEdgeLists.get(nextPath).size() -1; k > 0; k--) {
                     if(currentEdge.getAdjNode() == pathEdgeLists.get(nextPath).get(k).getBaseNode()){
                         pathStartIndices[nextPath] = k;

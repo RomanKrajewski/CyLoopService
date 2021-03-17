@@ -10,7 +10,7 @@ import java.util.Collections;
 import java.util.List;
 
 @RestController
-public class HelloController {
+public class RouteController {
 
     @Autowired
     private GraphService graphService;

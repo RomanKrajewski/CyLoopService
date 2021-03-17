@@ -22,22 +22,25 @@ public class PoiGeometryBuilder implements GeometryBuilder{
     Logger logger = LoggerFactory.getLogger(GraphService.class);
     private final int ROUTE_POI_COUNT = 3;
     private TreeMap <Integer, PoiRoutePoints> combinations;
+    private final int POIS_TO_QUERY = 1000;
+    private final int POIS_TO_COMBINE = 100;
 
     private int routeLength;
 
     public  PoiGeometryBuilder(int routeLength, GHPoint start, List<String> poiCategories){
         this.routeLength = routeLength;
         List<PointOfInterest> pointsOfInterest = queryPOIs(poiCategories,
-                start.getLat(), start.getLon(), routeLength);
+                start.getLat(), start.getLon(), routeLength/3);
 
         String[] foundCategories = pointsOfInterest.stream().map(pointOfInterest -> pointOfInterest.category).distinct().toArray(String[] :: new);
         PointOfInterest[][] arraysToCombine = new PointOfInterest[ROUTE_POI_COUNT][];
         for (int i = 0; i < arraysToCombine.length; i++) {
+            Collections.shuffle(pointsOfInterest);
             int finalI = i;
             arraysToCombine[i] = pointsOfInterest
                     .stream()
                     .filter(pointOfInterest -> pointOfInterest.category.equals(foundCategories[finalI %foundCategories.length]))
-                    .limit(100)
+                    .limit(POIS_TO_COMBINE)
                     .toArray(PointOfInterest[]::new);
         }
         combinations = new TreeMap<>();
@@ -89,22 +92,16 @@ public class PoiGeometryBuilder implements GeometryBuilder{
 
 
     List<PointOfInterest> queryPOIs(List<String> categories, double aroundLat, double aroundLong, int radius) {
-//        var categoryString = String.join("|", categories);
         var client = HttpClient.newHttpClient();
         var uriBase = "https://overpass.kumi.systems/api/interpreter?data=";
 
-//        var queryUnencoded = "[out:json][timeout:300];\n" +
-//            String.format(Locale.US, "(node[\"tourism\"~\"^%s$\"](around:%d, %f, %f);\n", categoryString, radius, aroundLat, aroundLong) +
-//            String.format(Locale.US, "node[\"amenity\"~\"^%s$\"](around:%d, %f, %f););\n", categoryString, radius, aroundLat, aroundLong) +
-//            "out body;";//
-//
         StringBuilder queryUnencodedBuilder = new StringBuilder("[out:json][timeout:300];\n");
         categories.forEach(category -> queryUnencodedBuilder.append(String.format(Locale.US,
                 "node[\"tourism\"=\"%s\"](around:%d, %f, %f)->.%stourism;\n", category, radius, aroundLat, aroundLong, category)));
         categories.forEach(category -> queryUnencodedBuilder.append(String.format(Locale.US,
                 "node[\"amenity\"=\"%s\"](around:%d, %f, %f)->.%samenity;\n", category, radius, aroundLat, aroundLong, category)));
-        categories.forEach(category -> queryUnencodedBuilder.append(String.format(Locale.US, ".%stourism out body 100;", category)));
-        categories.forEach(category -> queryUnencodedBuilder.append(String.format(Locale.US, ".%samenity out body 100;", category)));
+        categories.forEach(category -> queryUnencodedBuilder.append(String.format(Locale.US, ".%stourism out body %d;", category, POIS_TO_QUERY)));
+        categories.forEach(category -> queryUnencodedBuilder.append(String.format(Locale.US, ".%samenity out body %d;", category, POIS_TO_QUERY)));
 
 
         var queryUnencoded = queryUnencodedBuilder.toString();
@@ -140,7 +137,8 @@ public class PoiGeometryBuilder implements GeometryBuilder{
         }
         LinkedList<PointOfInterest> pointsOfInterest = new LinkedList<>();
         for(var element: node.get("elements")){
-            String category = element.get("tags").get("amenity") != null ? element.get("tags").get("amenity").asText() : element.get("tags").get("tourism").asText();
+            String category = element.get("tags").get("amenity") != null && categories.contains(element.get("tags").get("amenity").asText()) ?
+                    element.get("tags").get("amenity").asText() : element.get("tags").get("tourism").asText();
             pointsOfInterest.add(new PointOfInterest(element.get("id").asInt(), element.get("lat").asDouble(), element.get("lon").asDouble(), category));
         }
         return pointsOfInterest;
