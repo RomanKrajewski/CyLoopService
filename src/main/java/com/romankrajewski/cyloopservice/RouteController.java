@@ -1,6 +1,5 @@
 package com.romankrajewski.cyloopservice;
 
-import com.graphhopper.util.shapes.GHPoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -21,13 +20,19 @@ public class RouteController {
     }
 
     @RequestMapping("/route")
-    public List<RoutePOJO> route(@RequestParam(value = "lat") double lat, @RequestParam(value = "lng") double lng, @RequestParam(value = "length") int length){
-        return graphService.route(lat, lng, length, Collections.emptyList());
+    public List<RoutePOJO> route(@RequestParam(value = "lat") double lat,
+                                 @RequestParam(value = "lng") double lng,
+                                 @RequestParam(value = "length") int length,
+                                 @RequestParam(value="vehicle") String vehicle){
+        return graphService.route(lat, lng, length, Collections.emptyList(), Vehicle.fromString(vehicle));
     }
 
     @RequestMapping("/poiroute")
-    public List<RoutePOJO> poiroute(@RequestParam(value = "lat") double lat, @RequestParam(value = "lng") double lng,
-                                          @RequestParam(value = "length") int length, @RequestParam(value = "category") List<String> categories){
-        return graphService.route(lat,lng,length, categories);
+    public List<RoutePOJO> poiroute(@RequestParam(value = "lat") double lat,
+                                    @RequestParam(value = "lng") double lng,
+                                    @RequestParam(value = "length") int length,
+                                    @RequestParam(value = "category") List<String> categories,
+                                    @RequestParam(value="vehicle") String vehicle){
+        return graphService.route(lat,lng,length, categories, Vehicle.fromString(vehicle));
     }
 }

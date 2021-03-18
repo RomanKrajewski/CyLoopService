@@ -9,7 +9,7 @@
 
   # More options: foot,hike,bike,bike2,mtb,racingbike,motorcycle,car4wd,wheelchair (comma separated)
   # bike2 takes elevation data into account (like up-hill is slower than down-hill) and requires enabling graph.elevation.provider below.
-  graph.flag_encoders: bike
+  graph.flag_encoders: hike, bike, mtb, racingbike
 
   # Enable turn restrictions for car or motorcycle.
   # graph.flag_encoders: car|turn_costs=true
@@ -45,10 +45,21 @@
   # To prevent long running routing queries you should usually enable either speed or hybrid mode for all the given
   # profiles (see below). Otherwise you should at least limit the number of `routing.max_visited_nodes`.
   profiles:
+    - name: racingbike
+      vehicle: racingbike
+      weighting: fastest
+
+    - name: mtb
+      vehicle: mtb
+      weighting: fastest
+
     - name: bike
       vehicle: bike
-      weighting: shortest
-      turn_costs: true
+      weighting: fastest
+
+    - name: hike
+      vehicle: hike
+      weighting: fastest
 
   #  - name: car_with_turn_costs
   #    vehicle: car

@@ -62,14 +62,14 @@ public class GraphService {
         hopper.close();
     }
 
-    public List<RoutePOJO> route(double startLat, double startLng, int routeLength, List<String> categories){
+    public List<RoutePOJO> route(double startLat, double startLng, int routeLength, List<String> categories, Vehicle vehicle){
 
         var numPoints = 3;
         var numRoutes = 10;
-        var maxRetries = 30;
+        var maxRetries = 100;
 
         var locationIndex = hopper.getLocationIndex();
-        var bikeweighting = hopper.createWeighting(hopper.getProfile("bike"), new PMap());
+        var bikeweighting = hopper.createWeighting(hopper.getProfile(vehicle.toString()), new PMap());
 
         //Only consider Edges that are available to bikes
         EdgeFilter edgeFilter = edgeState -> !Double.isInfinite(bikeweighting.calcEdgeWeightWithAccess(edgeState, false))
@@ -89,6 +89,9 @@ public class GraphService {
 
         while (routes.size() < numRoutes && retryCount < maxRetries){
             var points = geometryBuilder.getNextGeometry();
+            if(points == null){
+                break;
+            }
             List<Snap> snaps = points.stream().map(ghPoint -> locationIndex.findClosest(ghPoint.getLat(), ghPoint.getLon(), edgeFilter)).collect(Collectors.toList());
 
             if(snaps.stream().anyMatch(snap -> !snap.isValid())){

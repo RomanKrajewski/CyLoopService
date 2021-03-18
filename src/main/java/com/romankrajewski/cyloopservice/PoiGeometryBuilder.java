@@ -7,10 +7,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.graphhopper.util.DistanceCalcEarth;
 import com.graphhopper.util.shapes.GHPoint;
 
-import org.jgrapht.Graph;
 import org.jgrapht.GraphPath;
-import org.jgrapht.alg.tour.ChristofidesThreeHalvesApproxMetricTSP;
 import org.jgrapht.alg.tour.GreedyHeuristicTSP;
+import org.jgrapht.alg.tour.HeldKarpTSP;
 import org.jgrapht.graph.DefaultWeightedEdge;
 import org.jgrapht.graph.SimpleWeightedGraph;
 import org.slf4j.Logger;
@@ -31,7 +30,8 @@ public class PoiGeometryBuilder implements GeometryBuilder{
     private TreeMap <Integer, PoiRoutePoints> combinations;
     private final int POIS_TO_QUERY = 1000;
     private final int POIS_TO_COMBINE = 100;
-    private GreedyHeuristicTSP<GHPoint, DefaultWeightedEdge> greedyHeuristic = new GreedyHeuristicTSP<>();
+//    private GreedyHeuristicTSP<GHPoint, DefaultWeightedEdge> greedyHeuristic = new GreedyHeuristicTSP<>();
+    private HeldKarpTSP<GHPoint, DefaultWeightedEdge> heldKarpTSP = new HeldKarpTSP<>();
 
     private int routeLength;
 
@@ -65,6 +65,9 @@ public class PoiGeometryBuilder implements GeometryBuilder{
         var upper = combinations.ceilingEntry(routeLength);
         var lower = combinations.lowerEntry(routeLength);
         Map.Entry<Integer, PoiRoutePoints> bestEntry;
+        if(lower == null && upper == null){
+            return null;
+        }
         if(upper == null){
             bestEntry = lower;
         }
@@ -110,7 +113,6 @@ public class PoiGeometryBuilder implements GeometryBuilder{
 
     private GraphPath<GHPoint, DefaultWeightedEdge> tsp(List<GHPoint> points){
         SimpleWeightedGraph<GHPoint, DefaultWeightedEdge> graph = new SimpleWeightedGraph<>(DefaultWeightedEdge.class);
-
         points.forEach(graph::addVertex);
         for (int i = 0; i < points.size(); i++) {
             for (int j = i +1; j < points.size(); j++) {
@@ -119,7 +121,7 @@ public class PoiGeometryBuilder implements GeometryBuilder{
                         points.get((i+1)%points.size()).lat, points.get((i+1)%points.size()).lon));
             }
         }
-        return greedyHeuristic.getTour(graph);
+        return heldKarpTSP.getTour(graph);
     }
 
 
