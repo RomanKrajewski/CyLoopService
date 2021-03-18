@@ -7,6 +7,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.graphhopper.util.DistanceCalcEarth;
 import com.graphhopper.util.shapes.GHPoint;
 
+import org.jgrapht.Graph;
+import org.jgrapht.GraphPath;
+import org.jgrapht.alg.tour.ChristofidesThreeHalvesApproxMetricTSP;
+import org.jgrapht.alg.tour.GreedyHeuristicTSP;
+import org.jgrapht.graph.DefaultWeightedEdge;
+import org.jgrapht.graph.SimpleWeightedGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.io.IOException;
@@ -19,18 +25,23 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class PoiGeometryBuilder implements GeometryBuilder{
+    private static final boolean USE_TSP = false;
     Logger logger = LoggerFactory.getLogger(GraphService.class);
     private final int ROUTE_POI_COUNT = 3;
     private TreeMap <Integer, PoiRoutePoints> combinations;
     private final int POIS_TO_QUERY = 1000;
     private final int POIS_TO_COMBINE = 100;
+    private GreedyHeuristicTSP<GHPoint, DefaultWeightedEdge> greedyHeuristic = new GreedyHeuristicTSP<>();
 
     private int routeLength;
 
     public  PoiGeometryBuilder(int routeLength, GHPoint start, List<String> poiCategories){
         this.routeLength = routeLength;
+        
+        var timeStamp = System.currentTimeMillis();
         List<PointOfInterest> pointsOfInterest = queryPOIs(poiCategories,
                 start.getLat(), start.getLon(), routeLength/3);
+        logger.info("Queried POIs in " + (System.currentTimeMillis() - timeStamp)/1000.0 + "s");
 
         String[] foundCategories = pointsOfInterest.stream().map(pointOfInterest -> pointOfInterest.category).distinct().toArray(String[] :: new);
         PointOfInterest[][] arraysToCombine = new PointOfInterest[ROUTE_POI_COUNT][];
@@ -44,7 +55,10 @@ public class PoiGeometryBuilder implements GeometryBuilder{
                     .toArray(PointOfInterest[]::new);
         }
         combinations = new TreeMap<>();
-        combine(combinations, new LinkedList<>() , arraysToCombine, start);
+        timeStamp = System.currentTimeMillis();
+        combine(combinations, new LinkedList<>() ,0, arraysToCombine, start);
+        var combinationsTime = (System.currentTimeMillis() - timeStamp)/1000.0;
+        logger.info("Generated combinations in " + combinationsTime + "s");
     }
 
     public List<? extends GHPoint> getNextGeometry(){
@@ -68,26 +82,44 @@ public class PoiGeometryBuilder implements GeometryBuilder{
         this.routeLength = routeLength;
     }
 
-    public void combine(TreeMap<Integer, PoiRoutePoints> combinations, List<GHPoint> current, PointOfInterest[][] arraysToCombine, GHPoint start){
+    public void combine(TreeMap<Integer, PoiRoutePoints> combinations, List<GHPoint> current,int currentIndex, PointOfInterest[][] arraysToCombine, GHPoint start){
         if(current.size() == arraysToCombine.length){
             if(current.stream().distinct().count() < current.size()){
                 return;
             }
-            int estimatedRouteLength = 0;
             current.add(0,start);
-            for (int i = 0; i < current.size(); i++) {
-                estimatedRouteLength += DistanceCalcEarth.DIST_EARTH.calcDist(current.get(i).lat, current.get(i).lon,
-                        current.get((i+1)%current.size()).lat, current.get((i+1)%current.size()).lon);
+            if(USE_TSP){
+                var bestPathApprox = tsp(current);
+                combinations.put((int) bestPathApprox.getWeight(), new PoiRoutePoints((int) bestPathApprox.getWeight(), bestPathApprox.getVertexList()));
+            }else {
+                int estimatedRouteLength = 0;
+                for (int i = 0; i < current.size(); i++) {
+                    estimatedRouteLength += DistanceCalcEarth.DIST_EARTH.calcDist(current.get(i).lat, current.get(i).lon,
+                            current.get((i+1)%current.size()).lat, current.get((i+1)%current.size()).lon);
+                    combinations.put(estimatedRouteLength, new PoiRoutePoints(estimatedRouteLength, current));
+                }
             }
-            combinations.put(estimatedRouteLength, new PoiRoutePoints(estimatedRouteLength, current));
         }else{
-            var currentPoiIndex = current.size();
-            for (int i = 0; i < arraysToCombine[currentPoiIndex].length; i++) {
+            for (int i = 0; i < arraysToCombine[currentIndex].length; i++) {
                 List<GHPoint> currentCopy = new LinkedList<>(current);
-                currentCopy.add(arraysToCombine[currentPoiIndex][i]);
-                combine(combinations, currentCopy, arraysToCombine, start);
+                currentCopy.add(arraysToCombine[currentIndex][i]);
+                combine(combinations, currentCopy,(currentIndex+1)%arraysToCombine.length, arraysToCombine, start);
             }
         }
+    }
+
+    private GraphPath<GHPoint, DefaultWeightedEdge> tsp(List<GHPoint> points){
+        SimpleWeightedGraph<GHPoint, DefaultWeightedEdge> graph = new SimpleWeightedGraph<>(DefaultWeightedEdge.class);
+
+        points.forEach(graph::addVertex);
+        for (int i = 0; i < points.size(); i++) {
+            for (int j = i +1; j < points.size(); j++) {
+                var edge = graph.addEdge(points.get(i), points.get(j));
+                graph.setEdgeWeight(edge, DistanceCalcEarth.DIST_EARTH.calcDist(points.get(i).lat, points.get(i).lon,
+                        points.get((i+1)%points.size()).lat, points.get((i+1)%points.size()).lon));
+            }
+        }
+        return greedyHeuristic.getTour(graph);
     }
 
 

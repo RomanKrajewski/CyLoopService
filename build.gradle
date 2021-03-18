@@ -14,6 +14,7 @@ repositories {
 dependencies {
     implementation 'com.graphhopper:graphhopper-reader-osm:3.0-pre2'
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.12.2'
+    implementation 'org.jgrapht:jgrapht-core:1.5.0'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

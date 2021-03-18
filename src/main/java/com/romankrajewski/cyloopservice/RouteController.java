@@ -26,7 +26,7 @@ public class RouteController {
     }
 
     @RequestMapping("/poiroute")
-    public List<RoutePOJO> poiRoute(@RequestParam(value = "lat") double lat, @RequestParam(value = "lng") double lng,
+    public List<RoutePOJO> poiroute(@RequestParam(value = "lat") double lat, @RequestParam(value = "lng") double lng,
                                           @RequestParam(value = "length") int length, @RequestParam(value = "category") List<String> categories){
         return graphService.route(lat,lng,length, categories);
     }
