@@ -12,6 +12,7 @@ import com.graphhopper.routing.querygraph.QueryGraph;
 import com.graphhopper.routing.util.EdgeFilter;
 import com.graphhopper.routing.weighting.AvoidEdgesWeighting;
 import com.graphhopper.routing.weighting.Weighting;
+import com.graphhopper.storage.IntsRef;
 import com.graphhopper.storage.index.LocationIndex;
 import com.graphhopper.storage.index.Snap;
 import com.graphhopper.util.DistanceCalcEarth;
@@ -69,15 +70,15 @@ public class GraphService {
         var maxRetries = 100;
 
         var locationIndex = hopper.getLocationIndex();
-        var bikeweighting = hopper.createWeighting(hopper.getProfile(vehicle.toString()), new PMap());
+        var weighting = hopper.createWeighting(hopper.getProfile(vehicle.toString()), new PMap());
 
         //Only consider Edges that are available to bikes
-        EdgeFilter edgeFilter = edgeState -> !Double.isInfinite(bikeweighting.calcEdgeWeightWithAccess(edgeState, false))
-                || !Double.isInfinite(bikeweighting.calcEdgeWeightWithAccess(edgeState, true));
+        EdgeFilter edgeFilter = edgeState -> !Double.isInfinite(weighting.calcEdgeWeightWithAccess(edgeState, false))
+                || !Double.isInfinite(weighting.calcEdgeWeightWithAccess(edgeState, true));
 
         List<RoutePOJO> routes = new LinkedList<>();
         var retryCount = 0;
-        var algoOpts = AlgorithmOptions.start().algorithm(Parameters.Algorithms.ASTAR_BI).weighting(bikeweighting).build();
+        var algoOpts = AlgorithmOptions.start().algorithm(Parameters.Algorithms.ASTAR_BI).weighting(weighting).build();
         var estimatedBeelineDistance = (int) (routeLength * 0.8);
         GeometryBuilder geometryBuilder = null;
 
@@ -102,12 +103,12 @@ public class GraphService {
 
             var queryGraph = QueryGraph.create(hopper.getGraphHopperStorage(), snaps);
 
-            List<Path> paths = calculatePaths(bikeweighting, algoOpts, snaps, queryGraph);
+            List<Path> paths = calculatePaths(weighting, algoOpts, snaps, queryGraph);
             if(paths == null){
                 retryCount ++;
                 continue;
             }
-            Path mergedPath = mergePaths(bikeweighting, queryGraph, paths, categories.isEmpty());
+            Path mergedPath = mergePaths(weighting, queryGraph, paths, categories.isEmpty());
             //check if route has an acceptable length and recalculate beeline distance estimate if necessary
             if(mergedPath.getDistance() > routeLength + routeLength/10.0 || mergedPath.getDistance() < routeLength - routeLength/10.0){
                 estimatedBeelineDistance =(int) ((routeLength/mergedPath.getDistance()) * estimatedBeelineDistance);

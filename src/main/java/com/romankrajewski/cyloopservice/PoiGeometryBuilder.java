@@ -24,7 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class PoiGeometryBuilder implements GeometryBuilder{
-    private static final boolean USE_TSP = false;
+    private static final boolean USE_TSP = true;
     Logger logger = LoggerFactory.getLogger(GraphService.class);
     private final int ROUTE_POI_COUNT = 3;
     private TreeMap <Integer, PoiRoutePoints> combinations;
@@ -118,7 +118,7 @@ public class PoiGeometryBuilder implements GeometryBuilder{
             for (int j = i +1; j < points.size(); j++) {
                 var edge = graph.addEdge(points.get(i), points.get(j));
                 graph.setEdgeWeight(edge, DistanceCalcEarth.DIST_EARTH.calcDist(points.get(i).lat, points.get(i).lon,
-                        points.get((i+1)%points.size()).lat, points.get((i+1)%points.size()).lon));
+                        points.get((j)%points.size()).lat, points.get((j)%points.size()).lon));
             }
         }
         return heldKarpTSP.getTour(graph);
