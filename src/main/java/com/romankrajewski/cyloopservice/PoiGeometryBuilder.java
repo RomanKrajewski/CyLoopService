@@ -8,7 +8,7 @@ import com.graphhopper.util.DistanceCalcEarth;
 import com.graphhopper.util.shapes.GHPoint;
 
 import org.jgrapht.GraphPath;
-import org.jgrapht.alg.tour.GreedyHeuristicTSP;
+import org.jgrapht.alg.tour.ChristofidesThreeHalvesApproxMetricTSP;
 import org.jgrapht.alg.tour.HeldKarpTSP;
 import org.jgrapht.graph.DefaultWeightedEdge;
 import org.jgrapht.graph.SimpleWeightedGraph;
@@ -30,7 +30,7 @@ public class PoiGeometryBuilder implements GeometryBuilder{
     private TreeMap <Integer, PoiRoutePoints> combinations;
     private final int POIS_TO_QUERY = 1000;
     private final int POIS_TO_COMBINE = 100;
-//    private GreedyHeuristicTSP<GHPoint, DefaultWeightedEdge> greedyHeuristic = new GreedyHeuristicTSP<>();
+    private ChristofidesThreeHalvesApproxMetricTSP<GHPoint, DefaultWeightedEdge> christofidesTSP = new ChristofidesThreeHalvesApproxMetricTSP<>();
     private HeldKarpTSP<GHPoint, DefaultWeightedEdge> heldKarpTSP = new HeldKarpTSP<>();
 
     private int routeLength;
@@ -58,7 +58,7 @@ public class PoiGeometryBuilder implements GeometryBuilder{
         timeStamp = System.currentTimeMillis();
         combine(combinations, new LinkedList<>() ,0, arraysToCombine, start);
         var combinationsTime = (System.currentTimeMillis() - timeStamp)/1000.0;
-        logger.info("Generated combinations in " + combinationsTime + "s");
+        logger.info("Generated" + combinations.size()+ " combinations in " + combinationsTime + "s");
     }
 
     public List<? extends GHPoint> getNextGeometry(){

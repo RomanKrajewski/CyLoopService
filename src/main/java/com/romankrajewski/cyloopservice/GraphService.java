@@ -114,6 +114,7 @@ public class GraphService {
                 estimatedBeelineDistance =(int) ((routeLength/mergedPath.getDistance()) * estimatedBeelineDistance);
                 geometryBuilder.setRouteLength(estimatedBeelineDistance);
                 retryCount ++;
+//                logger.info("wrong route length:" + mergedPath.getDistance());
                 continue;
             }
 
